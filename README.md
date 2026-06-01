@@ -1,4 +1,4 @@
-# 🍎 CekFresh — Freshness Detector & Food Waste Solution
+# 🍃 CekFresh — Freshness Detector & Food Waste Solution
 
 > Aplikasi web berbasis AI untuk mendeteksi kelayakan jual buah dan sayuran dari foto.  
 > Final Project Mata Kuliah Artificial Intelligence / Machine Learning
@@ -12,8 +12,8 @@
 ### Buah & Sayur yang Didukung
 | Produk | Label Output |
 |--------|-------------|
-| 🍎 Apel | Segar / Hampir Busuk / Busuk |
 | 🍌 Pisang | Segar / Hampir Busuk / Busuk |
+| 🍊 Jeruk | Segar / Hampir Busuk / Busuk |
 | 🍅 Tomat | Segar / Hampir Busuk / Busuk |
 
 ---
@@ -26,8 +26,8 @@
 | Framework UI | Streamlit |
 | Deep Learning | TensorFlow / Keras |
 | Model Base | MobileNet V2 (Transfer Learning) |
-| Dataset | Kaggle — Fruits Fresh and Rotten Classification |
-| Training | Google Colab |
+| Dataset | Kaggle — sriramr (Pisang & Jeruk) + raghavrpotdar (Tomat) |
+| Training | Google Colab (GPU T4) |
 
 ---
 
@@ -39,11 +39,13 @@ CekFresh/
 │   ├── raw/             # Dataset mentah dari Kaggle
 │   └── processed/       # Dataset setelah preprocessing
 ├── 02_Model/
-│   ├── training/        # Notebook training (.ipynb)
-│   └── saved/           # Model tersimpan (.h5) & class_names.json
+│   ├── training/        # Notebook training (fp_ai_kel8_final.ipynb)
+│   └── saved/           # Model tersimpan (.keras) & class_names.json
 ├── 03_App/
-│   ├── app.py           # Aplikasi Streamlit
-│   └── requirements.txt # Daftar dependensi
+│   ├── app.py               # Aplikasi Streamlit
+│   ├── requirements.txt     # Daftar dependensi
+│   ├── cekfresh_model.keras # Model hasil training
+│   └── class_names.json     # Label kelas
 ├── 04_Evaluasi/
 │   ├── grafik/          # Plot accuracy, loss, confusion matrix
 │   └── hasil/           # Classification report & metrik evaluasi
@@ -61,34 +63,37 @@ CekFresh/
 
 ## 🚀 Cara Menjalankan Aplikasi
 
-### 1. Persiapan Environment
+### 1. Clone Repository
 
 ```bash
-# Clone / buka folder proyek
-cd CekFresh/03_App
+git clone https://github.com/nightlurkr/FinalProjectAI-CekFresh.git
+cd FinalProjectAI-CekFresh/03_App
+```
 
-# Install dependensi
+### 2. Install Dependensi
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Pastikan Model Tersedia
+### 3. Pastikan Model Tersedia
 
-Pastikan file berikut sudah ada di `02_Model/saved/`:
-- `cekfresh_model.h5`
+Pastikan file berikut ada di folder `03_App/`:
+- `cekfresh_model.keras`
 - `class_names.json`
 
-### 3. Jalankan Aplikasi Streamlit
+### 4. Jalankan Aplikasi Streamlit
 
 ```bash
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
 Aplikasi akan terbuka otomatis di browser: `http://localhost:8501`
 
-### 4. Cara Pakai
+### 5. Cara Pakai
 
 1. Upload foto buah/sayur (format: JPG, PNG, JPEG)
-2. Klik tombol **"Deteksi"**
+2. Klik tombol **"Deteksi Sekarang"**
 3. Lihat hasil prediksi: **Segar / Hampir Busuk / Busuk**
 4. Baca rekomendasi tindakan yang ditampilkan
 
@@ -103,27 +108,43 @@ MobileNet V2 (pre-trained ImageNet) — Feature Extraction
         ↓
 Global Average Pooling
         ↓
-Dense (128, ReLU) + Dropout (0.5)
+Dense (128, ReLU) + Dropout (0.4)
         ↓
-Dense (9, Softmax) — 9 kelas output
+Dense (1, Sigmoid) — Binary classification
         ↓
-Label: [Apel Segar, Apel Hampir Busuk, Apel Busuk,
-        Pisang Segar, Pisang Hampir Busuk, Pisang Busuk,
-        Tomat Segar, Tomat Hampir Busuk, Tomat Busuk]
+Output: Fresh (0) / Rotten (1)
 ```
 
+### Sistem Label 3 Tingkat
+Model menghasilkan nilai probabilitas *rotten* (0.0–1.0), kemudian dikonversi ke 3 label menggunakan threshold:
+
+| Probabilitas Rotten | Label Tampil | Status |
+|---------------------|--------------|--------|
+| < 30% | 🟢 Segar | ✅ Layak Jual |
+| 30% – 65% | 🟡 Hampir Busuk | ⚠️ Segera Jual |
+| > 65% | 🔴 Busuk | ❌ Tidak Layak Jual |
+
 ### Proses Training
-- **Phase 1**: Base model di-*freeze*, hanya melatih layer classifier baru
-- **Phase 2**: Fine-tuning 30 layer terakhir MobileNet V2 dengan learning rate kecil
-- **Target Akurasi**: ≥ 85%
+- **Dataset**: 10.531 gambar (Train: 7.211 / Val: 1.324 / Test: 1.996)
+- **Phase 1**: Base model di-*freeze*, hanya melatih layer classifier baru (10 epoch)
+- **Phase 2**: Fine-tuning 30 layer terakhir MobileNet V2 dengan learning rate 1e-5 (15 epoch)
+
+---
+
+## 📊 Dataset
+
+| Dataset | Sumber | Isi |
+|---------|--------|-----|
+| Fruits Fresh and Rotten | [sriramr/Kaggle](https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification) | Pisang & Jeruk |
+| Fresh and Stale Images | [raghavrpotdar/Kaggle](https://www.kaggle.com/datasets/raghavrpotdar/fresh-and-stale-images-of-fruits-and-vegetables) | Tomat |
 
 ---
 
 ## 📊 Evaluasi Model
 
-Hasil evaluasi disimpan di `04_Evaluasi/`:
+Hasil evaluasi tersimpan di `04_Evaluasi/`:
 - `grafik/` — Training/Validation Accuracy & Loss curve, Confusion Matrix
-- `hasil/` — Classification Report (Precision, Recall, F1-Score per kelas)
+- `hasil/` — Classification Report (Precision, Recall, F1-Score)
 
 ---
 
@@ -138,35 +159,25 @@ Laporan lengkap tersedia di `05_Laporan/final/` mencakup:
 
 ---
 
-## ©️ Hak Kekayaan Intelektual (HKI)
-
-Proyek ini didaftarkan sebagai **Hak Cipta Program Komputer** ke:  
-**DJKI — Direktorat Jenderal Kekayaan Intelektual**  
-Website: [djki.kemenkumham.go.id](https://djki.kemenkumham.go.id)
-
-Dokumen HKI tersimpan di `06_HKI/`.
-
----
-
 ## 👥 Tim Pengembang
 
 | Nama | Peran |
 |------|-------|
-| *(Nama Anggota 1)* | Model Training & Evaluasi |
-| *(Nama Anggota 2)* | Pengembangan Aplikasi Streamlit |
-| *(Nama Anggota 3)* | Dataset & Laporan |
+| *(Nama Anggota 1)* | Dataset & Preprocessing |
+| *(Nama Anggota 2)* | Model Training & Evaluasi |
+| *(Nama Anggota 3)* | Pengembangan Aplikasi Streamlit |
 
 ---
 
 ## 📅 Timeline Proyek
 
-| Fase | Kegiatan | Target |
+| Fase | Kegiatan | Status |
 |------|----------|--------|
-| Fase 1 | Persiapan Dataset | Minggu 1 |
-| Fase 2 | Training Model | Minggu 1–2 |
-| Fase 3 | Pengembangan Aplikasi | Minggu 2 |
-| Fase 4 | Penulisan Laporan | Minggu 2 |
-| Fase 5 | Pendaftaran HKI | Setelah Deadline |
+| Fase 1 | Persiapan Dataset | ✅ Selesai |
+| Fase 2 | Training Model | ✅ Selesai |
+| Fase 3 | Pengembangan Aplikasi | ✅ Selesai |
+| Fase 4 | Penulisan Laporan | 🔄 Dalam Proses |
+| Fase 5 | Pendaftaran HKI | ⏳ Menunggu |
 
 **Deadline**: Pertengahan Juni 2026
 
