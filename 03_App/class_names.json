@@ -1,4 +1,8 @@
 {
-  "0": "fresh",
-  "1": "rotten"
+  "0": "freshbanana",
+  "1": "freshorange",
+  "2": "freshtomato",
+  "3": "rottenbanana",
+  "4": "rottenorange",
+  "5": "rottentomato"
 }

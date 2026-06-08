@@ -27,6 +27,7 @@ if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
 
 
+
 def apply_theme(dark: bool):
     """Inject CSS variabel berdasarkan tema yang dipilih."""
     if dark:
@@ -254,6 +255,63 @@ def apply_theme(dark: bool):
         img {{
             border-radius: 10px !important;
         }}
+
+        /* ── Camera input ── */
+        [data-testid="stCameraInput"] {{
+            background: {bg2} !important;
+            border-radius: 12px !important;
+        }}
+
+        /* ── Tabs ── */
+        [data-testid="stTabs"] [data-baseweb="tab-list"] {{
+            background: {bg2} !important;
+            border-radius: 10px !important;
+            padding: 4px !important;
+            gap: 4px !important;
+        }}
+        [data-testid="stTabs"] [data-baseweb="tab"] {{
+            background: transparent !important;
+            border-radius: 8px !important;
+            color: {text2} !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            padding: 8px 20px !important;
+            border: none !important;
+        }}
+        [data-testid="stTabs"] [aria-selected="true"] {{
+            background: {accent} !important;
+            color: #fff !important;
+        }}
+        [data-testid="stTabs"] [data-baseweb="tab-highlight"] {{
+            display: none !important;
+        }}
+        [data-testid="stTabs"] [data-baseweb="tab-border"] {{
+            display: none !important;
+        }}
+
+        /* ── Result card ── */
+        .result-card {{
+            background: {card};
+            border: 1px solid {border};
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }}
+
+        /* ── Produk badge chips ── */
+        .produk-chip {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: {accent2};
+            border: 1px solid {border};
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: {text};
+            margin: 4px;
+        }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -273,7 +331,30 @@ def load_class_names():
         with open(CLASS_NAMES_PATH) as f:
             data = json.load(f)
         return {int(k): v for k, v in data.items()}
+    # Default fallback (binary) — diganti setelah retrain multiclass
     return {0: "fresh", 1: "rotten"}
+
+
+# ─────────────────────────────────────────────
+# MAPPING KELAS MULTICLASS
+# ─────────────────────────────────────────────
+FRUIT_INFO = {
+    "banana": ("🍌", "Pisang"),
+    "orange": ("🍊", "Jeruk"),
+    "tomato": ("🍅", "Tomat"),
+}
+
+def parse_class_name(class_name: str):
+    """
+    Dari nama kelas seperti 'freshbanana' atau 'rottentomato',
+    kembalikan (fruit_key, is_fresh).
+    """
+    if class_name.startswith("fresh"):
+        return class_name[5:], True    # "banana", True
+    elif class_name.startswith("rotten"):
+        return class_name[6:], False   # "tomato", False
+    # Fallback binary
+    return "unknown", class_name == "fresh"
 
 
 # ─────────────────────────────────────────────
@@ -287,48 +368,163 @@ def preprocess_image(img: Image.Image) -> np.ndarray:
 
 
 # ─────────────────────────────────────────────
-# FUNGSI KONVERSI CONFIDENCE → 3 LABEL
-# Model binary: sigmoid output
-#   0.0 → sangat fresh
-#   1.0 → sangat rotten
-# Threshold:
-#   < 0.30  → Segar
-#   0.30–0.65 → Hampir Busuk
-#   > 0.65  → Busuk
+# FUNGSI PREDIKSI UTAMA (MULTICLASS)
 # ─────────────────────────────────────────────
-def get_label_and_recommendation(prob_rotten: float):
-    if prob_rotten < 0.30:
-        label       = "🟢 Segar"
-        color       = "green"
-        badge       = "✅ LAYAK JUAL"
-        rekomendasi = (
-            "Produk dalam kondisi prima dan layak jual. "
+def predict_freshness(img: Image.Image, model, class_names: dict):
+    """
+    Prediksi kesegaran buah/sayur dari gambar PIL.
+    Mendukung model multiclass (6 kelas) maupun binary (fallback).
+
+    Returns:
+        fruit_emoji, fruit_label, freshness_label, freshness_color,
+        badge, rekomendasi, tips, rotten_score, probs_dict
+    """
+    arr   = preprocess_image(img)
+    probs = model.predict(arr, verbose=0)[0]  # shape (N,)
+    n_classes = len(probs)
+
+    # ── MULTICLASS (6 kelas) ──────────────────────────────────────────────
+    if n_classes == 6:
+        name_to_idx = {v: k for k, v in class_names.items()}
+
+        # Cari fruit type dengan total probability tertinggi
+        fruit_scores = {}
+        for fruit_key in ["banana", "orange", "tomato"]:
+            fresh_name  = f"fresh{fruit_key}"
+            rotten_name = f"rotten{fruit_key}"
+            p_f = probs[name_to_idx[fresh_name]]  if fresh_name  in name_to_idx else 0
+            p_r = probs[name_to_idx[rotten_name]] if rotten_name in name_to_idx else 0
+            fruit_scores[fruit_key] = p_f + p_r
+
+        detected_fruit = max(fruit_scores, key=fruit_scores.get)
+        fruit_emoji, fruit_label = FRUIT_INFO.get(detected_fruit, ("🌿", "Produk"))
+
+        # Hitung rotten score per buah yang terdeteksi
+        fresh_name  = f"fresh{detected_fruit}"
+        rotten_name = f"rotten{detected_fruit}"
+        p_fresh  = probs[name_to_idx.get(fresh_name,  0)]
+        p_rotten = probs[name_to_idx.get(rotten_name, 1)]
+        total_fruit = p_fresh + p_rotten
+        rotten_score = float(p_rotten / total_fruit) if total_fruit > 1e-9 else 0.5
+
+        # Buat dict semua probabilitas untuk ditampilkan
+        probs_dict = {class_names[i]: float(probs[i]) for i in range(n_classes)}
+
+    # ── BINARY FALLBACK (sebelum retrain) ────────────────────────────────
+    else:
+        fruit_emoji, fruit_label = "🌿", "Produk"
+        rotten_score = float(probs[0]) if n_classes == 1 else float(probs[1])
+        p_fresh  = 1.0 - rotten_score
+        p_rotten = rotten_score
+        probs_dict = {"fresh": float(p_fresh), "rotten": float(p_rotten)}
+
+    # ── KONVERSI ROTTEN SCORE → 3 LABEL ──────────────────────────────────
+    freshness_label, freshness_color, badge, rekomendasi, tips = \
+        rotten_score_to_label(rotten_score, fruit_label)
+
+    return (fruit_emoji, fruit_label, freshness_label, freshness_color,
+            badge, rekomendasi, tips, rotten_score, probs_dict)
+
+
+def rotten_score_to_label(rotten_score: float, fruit_label: str = "Produk"):
+    """Konversi skor busuk (0.0–1.0) ke label, warna, badge, dan rekomendasi."""
+    if rotten_score < 0.30:
+        label  = "🟢 Segar"
+        color  = "green"
+        badge  = "✅ LAYAK JUAL"
+        rekmd  = (
+            f"{fruit_label} dalam kondisi prima dan layak jual. "
             "Simpan di tempat sejuk atau kulkas untuk menjaga kesegaran lebih lama."
         )
-        tips = "💡 Tip: Simpan terpisah dari buah yang sudah matang untuk menghindari pematangan dini."
+        tips   = "💡 Simpan terpisah dari buah yang sudah matang untuk menghindari pematangan dini."
 
-    elif prob_rotten < 0.65:
-        label       = "🟡 Hampir Busuk"
-        color       = "orange"
-        badge       = "⚠️ SEGERA JUAL / GUNAKAN"
-        rekomendasi = (
-            "Produk mulai menunjukkan tanda-tanda penurunan kualitas. "
+    elif rotten_score < 0.65:
+        label  = "🟡 Hampir Busuk"
+        color  = "orange"
+        badge  = "⚠️ SEGERA JUAL / GUNAKAN"
+        rekmd  = (
+            f"{fruit_label} mulai menunjukkan tanda-tanda penurunan kualitas. "
             "Segera jual atau gunakan dalam waktu dekat. "
             "Pertimbangkan memberikan diskon untuk mempercepat penjualan."
         )
-        tips = "💡 Tip: Pisahkan dari produk segar agar tidak mempercepat pembusukan produk lainnya."
+        tips   = "💡 Pisahkan dari produk segar agar tidak mempercepat pembusukan produk lainnya."
 
     else:
-        label       = "🔴 Busuk"
-        color       = "red"
-        badge       = "❌ TIDAK LAYAK JUAL"
-        rekomendasi = (
-            "Produk sudah tidak layak untuk dijual atau dikonsumsi. "
+        label  = "🔴 Busuk"
+        color  = "red"
+        badge  = "❌ TIDAK LAYAK JUAL"
+        rekmd  = (
+            f"{fruit_label} sudah tidak layak untuk dijual atau dikonsumsi. "
             "Pisahkan segera dari produk lainnya untuk mencegah kontaminasi."
         )
-        tips = "💡 Tip: Manfaatkan sebagai kompos atau pupuk organik untuk mengurangi food waste."
+        tips   = "💡 Manfaatkan sebagai kompos atau pupuk organik untuk mengurangi food waste."
 
-    return label, color, badge, rekomendasi, tips
+    return label, color, badge, rekmd, tips
+
+
+# ─────────────────────────────────────────────
+# FUNGSI TAMPILKAN HASIL
+# ─────────────────────────────────────────────
+def show_result(img: Image.Image, filename: str, model, class_names: dict, show_image=True):
+    """Tampilkan gambar + hasil prediksi dalam satu blok."""
+    try:
+        (fruit_emoji, fruit_label, freshness_label, freshness_color,
+         badge, rekomendasi, tips, rotten_score, probs_dict) = \
+            predict_freshness(img, model, class_names)
+
+        fresh_score = 1.0 - rotten_score
+
+        # ── Layout: gambar (kiri) + ringkasan (kanan) ──
+        if show_image:
+            col_img, col_res = st.columns([1, 1.3])
+            with col_img:
+                st.image(img, use_container_width=True)
+        else:
+            # Kamera: gambar sudah tampil di camera_input, skip duplikasi
+            col_res = st.container()
+
+        with col_res:
+            # Jenis buah
+            st.markdown(
+                f"<p style='font-size:18px; font-weight:700; margin:0 0 8px 0;'>"
+                f"{fruit_emoji} {fruit_label}</p>",
+                unsafe_allow_html=True
+            )
+
+            # Badge status
+            if freshness_color == "green":
+                st.success(f"**{badge}** &nbsp; {freshness_label}")
+            elif freshness_color == "orange":
+                st.warning(f"**{badge}** &nbsp; {freshness_label}")
+            else:
+                st.error(f"**{badge}** &nbsp; {freshness_label}")
+
+            # Progress bars ringkas (cast ke float agar kompatibel dengan Streamlit)
+            st.progress(float(fresh_score),  text=f"🟢 Segar:  {fresh_score*100:.0f}%")
+            st.progress(float(rotten_score), text=f"🔴 Busuk:  {rotten_score*100:.0f}%")
+
+        # ── Detail confidence (collapsed) ──
+        with st.expander("🔢 Detail probabilitas semua kelas"):
+            n_col = min(len(probs_dict), 3)
+            cols  = st.columns(n_col)
+            for i, (cls_name, prob) in enumerate(
+                sorted(probs_dict.items(), key=lambda x: -x[1])
+            ):
+                with cols[i % n_col]:
+                    st.metric(cls_name, f"{prob*100:.1f}%")
+
+        # ── Rekomendasi ──
+        if freshness_color == "green":
+            st.success(f"💬 **Rekomendasi:** {rekomendasi}")
+        elif freshness_color == "orange":
+            st.warning(f"💬 **Rekomendasi:** {rekomendasi}")
+        else:
+            st.error(f"💬 **Rekomendasi:** {rekomendasi}")
+        st.info(tips)
+
+    except Exception as e:
+        st.error(f"❌ Error memproses `{filename}`: {e}")
+        st.caption("Pastikan `cekfresh_model.keras` dan `class_names.json` ada di folder 03_App/")
 
 
 # ─────────────────────────────────────────────
@@ -337,23 +533,17 @@ def get_label_and_recommendation(prob_rotten: float):
 apply_theme(st.session_state.dark_mode)
 
 # ─────────────────────────────────────────────
-# TOGGLE DARK/LIGHT — Visual switch di kanan atas
-# ─────────────────────────────────────────────
-# ─────────────────────────────────────────────
 # TOGGLE DARK/LIGHT — pakai checkbox native
 # ─────────────────────────────────────────────
 is_dark = st.session_state.dark_mode
 
 col_space, col_tog = st.columns([6, 2])
-
 with col_tog:
     st.markdown(f"""
     <style>
-        /* Sembunyikan label default checkbox */
         div[data-testid="stCheckbox"] label span:last-child {{
             display: none;
         }}
-        /* Style checkbox jadi toggle switch */
         div[data-testid="stCheckbox"] label {{
             display: flex;
             align-items: center;
@@ -398,150 +588,112 @@ with col_tog:
         st.rerun()
 
 # ─────────────────────────────────────────────
-# TAMPILAN UTAMA
+# HEADER
 # ─────────────────────────────────────────────
-st.markdown("""
-<h1 style='text-align:center; color:#16a34a;'>🍃 CekFresh</h1>
-<p style='text-align:center; color:#555; font-size:16px;'>
-    Freshness Detector & Food Waste Solution<br>
-    <small>Deteksi kelayakan jual buah & sayur dari foto menggunakan AI</small>
-</p>
-<hr style='margin: 0.5rem 0 1.5rem 0;'>
+is_dark = st.session_state.dark_mode
+head_sub = "#8fbe7a" if is_dark else "#4a6640"
+chip_bg  = "#1e2d18" if is_dark else "#e8f5e0"
+chip_bd  = "rgba(255,255,255,0.09)" if is_dark else "rgba(0,0,0,0.09)"
+chip_tx  = "#e0f0d8" if is_dark else "#1a2e14"
+
+st.markdown(f"""
+<div style='text-align:center; padding: 8px 0 4px 0;'>
+  <h1 style='color:#16a34a; margin:0; font-size:2.2rem;'>🍃 CekFresh</h1>
+  <p style='color:{head_sub}; font-size:14px; margin:4px 0 12px 0;'>
+    Freshness Detector &amp; Food Waste Solution &nbsp;·&nbsp;
+    Deteksi kelayakan jual buah &amp; sayur dari foto menggunakan AI
+  </p>
+  <div>
+    <span class='produk-chip' style='background:{chip_bg}; border-color:{chip_bd}; color:{chip_tx};'>🍌 Pisang</span>
+    <span class='produk-chip' style='background:{chip_bg}; border-color:{chip_bd}; color:{chip_tx};'>🍊 Jeruk</span>
+    <span class='produk-chip' style='background:{chip_bg}; border-color:{chip_bd}; color:{chip_tx};'>🍅 Tomat</span>
+  </div>
+</div>
+<hr style='margin: 12px 0;'>
 """, unsafe_allow_html=True)
 
-# Kolom info produk yang didukung
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.markdown("**🍌 Pisang**\nFresh & Rotten")
-with col2:
-    st.markdown("**🍊 Jeruk**\nFresh & Rotten")
-with col3:
-    st.markdown("**🍅 Tomat**\nFresh & Rotten")
+# ─────────────────────────────────────────────
+# INPUT MODE — pakai Tabs (active/inactive otomatis)
+# ─────────────────────────────────────────────
+ph_bg     = "#162012" if is_dark else "#f0fdf4"
+ph_border = "#3a6040" if is_dark else "#86efac"
+ph_text   = "#8fbe7a" if is_dark else "#15803d"
+ph_sub    = "#5a8050" if is_dark else "#888888"
 
-st.markdown("---")
+tab_upload, tab_camera = st.tabs(["📁  Upload Foto", "📷  Kamera"])
 
 # ─────────────────────────────────────────────
-# UPLOAD GAMBAR
+# TAB 1: UPLOAD (multi-file)
 # ─────────────────────────────────────────────
-st.subheader("📷 Upload Foto Produk")
-uploaded_file = st.file_uploader(
-    "Pilih gambar buah atau sayur (JPG / PNG / JPEG)",
-    type=["jpg", "jpeg", "png"],
-    help="Upload satu foto produk yang ingin diperiksa kesegarannya"
-)
+with tab_upload:
+    st.markdown("##### Upload satu atau beberapa foto sekaligus")
+    uploaded_files = st.file_uploader(
+        "Pilih foto buah atau sayur (JPG / PNG / JPEG)",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        help="Bisa upload banyak foto sekaligus untuk deteksi batch",
+        label_visibility="collapsed"
+    )
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
+    if uploaded_files:
+        n = len(uploaded_files)
+        st.caption(f"{n} foto dipilih — klik Deteksi untuk menganalisis semua.")
+        st.markdown("")
 
-    # Tampilkan gambar yang diupload
-    col_img, col_info = st.columns([1, 1])
-    with col_img:
-        st.image(image, caption="Foto yang diupload", use_container_width=True)
+        if st.button("🔍 Deteksi Sekarang", type="primary",
+                     use_container_width=True, key="btn_upload"):
+            model       = load_model()
+            class_names = load_class_names()
 
-    with col_info:
-        st.markdown("**📋 Info Gambar**")
-        st.write(f"• Nama file : `{uploaded_file.name}`")
-        st.write(f"• Ukuran    : {image.size[0]} × {image.size[1]} px")
-        st.write(f"• Format    : {image.format or 'JPEG/PNG'}")
-        st.markdown("---")
-        st.info("Klik **Deteksi Sekarang** untuk menganalisis kondisi produk.", icon="👇")
+            for i, uf in enumerate(uploaded_files):
+                img = Image.open(uf)
+                st.markdown(f"---")
+                if n > 1:
+                    st.markdown(f"**Foto {i+1} / {n}** — `{uf.name}`")
+                with st.spinner(f"Menganalisis {uf.name}..."):
+                    show_result(img, uf.name, model, class_names, show_image=True)
+    else:
+        st.markdown(f"""
+        <div style='text-align:center; padding:40px; background:{ph_bg};
+                    border-radius:12px; border:2px dashed {ph_border}; margin-top:8px;'>
+            <p style='font-size:44px; margin:0;'>📸</p>
+            <p style='color:{ph_text}; font-size:15px; margin:10px 0 4px 0;'>
+                Drag & drop atau klik untuk memilih foto
+            </p>
+            <p style='color:{ph_sub}; font-size:12px; margin:0;'>
+                Pisang 🍌 · Jeruk 🍊 · Tomat 🍅 &nbsp;—&nbsp; bisa multi-foto sekaligus
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("")
+# ─────────────────────────────────────────────
+# TAB 2: KAMERA LANGSUNG
+# ─────────────────────────────────────────────
+with tab_camera:
+    st.markdown("##### Ambil foto langsung dengan kamera")
+    st.caption("Arahkan kamera ke buah/sayur, lalu klik ikon kamera untuk mengambil foto.")
 
-    # ─────────────────────────────────────────────
-    # TOMBOL DETEKSI
-    # ─────────────────────────────────────────────
-    if st.button("🔍 Deteksi Sekarang", type="primary", use_container_width=True):
-        with st.spinner("Menganalisis gambar dengan AI..."):
-            try:
-                model       = load_model()
-                class_names = load_class_names()
+    camera_image = st.camera_input("foto_kamera", label_visibility="collapsed")
 
-                # Preprocess & predict
-                img_array   = preprocess_image(image)
-                prediction  = model.predict(img_array, verbose=0)
-                prob_rotten = float(prediction[0][0])
-                prob_fresh  = 1.0 - prob_rotten
-
-                # Tentukan label & rekomendasi
-                label, color, badge, rekomendasi, tips = get_label_and_recommendation(prob_rotten)
-
-                # ─── HASIL DETEKSI ───
-                st.markdown("---")
-                st.subheader("📊 Hasil Deteksi")
-
-                # Badge status
-                if color == "green":
-                    st.success(f"**{badge}**")
-                elif color == "orange":
-                    st.warning(f"**{badge}**")
-                else:
-                    st.error(f"**{badge}**")
-
-                # Label kondisi
-                st.markdown(f"### Kondisi Produk: {label}")
-
-                # Progress bar confidence
-                st.markdown("**Tingkat Kesegaran:**")
-                st.progress(prob_fresh, text=f"Fresh: {prob_fresh*100:.1f}%")
-                st.markdown("**Tingkat Pembusukan:**")
-                st.progress(prob_rotten, text=f"Rotten: {prob_rotten*100:.1f}%")
-
-                # Detail angka
-                with st.expander("🔢 Detail Confidence Score"):
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        st.metric("Segar (Fresh)", f"{prob_fresh*100:.1f}%")
-                    with col_b:
-                        st.metric("Busuk (Rotten)", f"{prob_rotten*100:.1f}%")
-                    st.caption(
-                        "Threshold: < 30% rotten = Segar | 30–65% = Hampir Busuk | > 65% = Busuk"
-                    )
-
-                # Rekomendasi
-                st.markdown("---")
-                st.subheader("💬 Rekomendasi")
-                if color == "green":
-                    st.success(rekomendasi)
-                elif color == "orange":
-                    st.warning(rekomendasi)
-                else:
-                    st.error(rekomendasi)
-
-                st.info(tips)
-
-            except Exception as e:
-                st.error(f"❌ Terjadi error saat memproses gambar: {e}")
-                st.caption("Pastikan file model `cekfresh_model.keras` ada di folder yang sama dengan app.py")
-
-else:
-    # Placeholder saat belum ada upload
-    ph_bg     = "#162012" if st.session_state.dark_mode else "#f0fdf4"
-    ph_border = "#3a6040" if st.session_state.dark_mode else "#86efac"
-    ph_text   = "#8fbe7a" if st.session_state.dark_mode else "#15803d"
-    ph_sub    = "#5a8050" if st.session_state.dark_mode else "#888888"
-
-    st.markdown(f"""
-    <div style='text-align:center; padding: 40px; background:{ph_bg};
-                border-radius:12px; border: 2px dashed {ph_border};'>
-        <p style='font-size:48px; margin:0;'>📸</p>
-        <p style='color:{ph_text}; font-size:16px; margin-top:10px;'>
-            Upload foto buah atau sayur untuk memulai deteksi
-        </p>
-        <p style='color:{ph_sub}; font-size:13px;'>
-            Mendukung: Pisang 🍌 | Jeruk 🍊 | Tomat 🍅
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    if camera_image is not None:
+        img = Image.open(camera_image)
+        st.markdown("")
+        if st.button("🔍 Deteksi Sekarang", type="primary",
+                     use_container_width=True, key="btn_camera"):
+            model       = load_model()
+            class_names = load_class_names()
+            with st.spinner("Menganalisis foto..."):
+                show_result(img, "foto_kamera.jpg", model, class_names, show_image=False)
 
 # ─────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────
 st.markdown("---")
-st.markdown("""
-<p style='text-align:center; color:#aaa; font-size:12px;'>
-    CekFresh v1.0 — Final Project AI/ML |
-    Model: MobileNetV2 Transfer Learning |
-    Dataset: 10.531 gambar (Pisang, Jeruk, Tomat)
-</p>
-""", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center; color:#888; font-size:11px; margin:0;'>"
+    "CekFresh v2.0 &nbsp;·&nbsp; Final Project AI/ML &nbsp;·&nbsp; "
+    "MobileNetV2 Transfer Learning &nbsp;·&nbsp; "
+    "🍌 Pisang &nbsp; 🍊 Jeruk &nbsp; 🍅 Tomat"
+    "</p>",
+    unsafe_allow_html=True
+)

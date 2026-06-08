@@ -49,9 +49,9 @@ CekFresh/
 ├── 04_Evaluasi/
 │   ├── grafik/          # Plot accuracy, loss, confusion matrix
 │   └── hasil/           # Classification report & metrik evaluasi
-├── 05_Laporan/
-│   ├── draft/           # Draft laporan
-│   └── final/           # Laporan final
+├── 05_UserGuide/
+│   ├── draft/           # Draft user guide
+│   └── final/           # User guide final (PDF)
 ├── 06_HKI/
 │   ├── dokumen/         # Formulir & persyaratan HKI
 │   └── submitted/       # Bukti pendaftaran HKI
@@ -148,14 +148,14 @@ Hasil evaluasi tersimpan di `04_Evaluasi/`:
 
 ---
 
-## 📄 Laporan
+## 📖 User Guide
 
-Laporan lengkap tersedia di `05_Laporan/final/` mencakup:
-- Latar Belakang & Rumusan Masalah
-- Tinjauan Pustaka (MobileNet V2, Transfer Learning)
-- Metodologi & Implementasi
-- Hasil Evaluasi & Analisis
-- Kesimpulan & Saran
+Panduan penggunaan tersedia di `05_UserGuide/final/` mencakup:
+- Deskripsi singkat aplikasi CekFresh
+- Cara instalasi & menjalankan aplikasi
+- Panduan penggunaan step-by-step (dengan screenshot)
+- Penjelasan hasil deteksi & rekomendasi
+- FAQ / Troubleshooting umum
 
 ---
 

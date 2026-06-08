@@ -2,7 +2,7 @@
 
 > **Proyek**: CekFresh — Freshness Detector & Food Waste Solution  
 > **Deadline**: Pertengahan Juni 2026  
-> **Update terakhir**: 26 Mei 2026
+> **Update terakhir**: 2 Juni 2026
 
 ---
 
@@ -10,132 +10,107 @@
 
 | Fase | Status | Selesai |
 |------|--------|---------|
-| Fase 1 — Persiapan | 🔴 Belum Mulai | 0 / 4 |
-| Fase 2 — Training Model | 🔴 Belum Mulai | 0 / 6 |
-| Fase 3 — Aplikasi | 🔴 Belum Mulai | 0 / 4 |
-| Fase 4 — Laporan | 🔴 Belum Mulai | 0 / 4 |
-| Fase 5 — HKI | 🔴 Belum Mulai | 0 / 4 |
+| Fase 1 — Persiapan | ✅ Selesai | 4 / 4 |
+| Fase 2 — Training Model | ✅ Selesai | 6 / 6 |
+| Fase 3 — Aplikasi | ✅ Selesai | 4 / 4 |
+| Fase 4 — User Guide | 🔄 Dalam Proses | 0 / 3 |
+| Fase 5 — HKI | ⏳ Menunggu | 0 / 4 |
 
-**Total**: 0 / 22 tugas selesai
-
----
-
-## 🗓️ FASE 1 — PERSIAPAN DATASET (Minggu 1)
-
-**Target selesai**: Akhir minggu pertama
-
-- [ ] Download dataset dari Kaggle
-  - Keyword pencarian: `fruits fresh rotten classification`
-  - Link: https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification
-  - Simpan ke: `01_Dataset/raw/`
-
-- [ ] Extract dan susun dataset ke folder `01_Dataset/raw/`
-  - Struktur: `raw/Train/` dan `raw/Test/`
-  - Pastikan ada subfolder untuk setiap kelas
-
-- [ ] Preprocessing dataset
-  - Resize semua gambar ke 224×224 piksel
-  - Split data: 80% train / 20% validation (jika belum tersplit)
-  - Simpan ke `01_Dataset/processed/`
-
-- [ ] Verifikasi jumlah gambar per kelas
-  - Catat jumlah gambar: Apel Segar, Apel Busuk
-  - Catat jumlah gambar: Pisang Segar, Pisang Busuk
-  - Catat jumlah gambar: Tomat Segar, Tomat Busuk
-  - Pastikan tidak ada ketidakseimbangan kelas yang ekstrem
+**Total**: 14 / 21 tugas selesai
 
 ---
 
-## 🤖 FASE 2 — TRAINING MODEL (Minggu 1–2)
+## 🗓️ FASE 1 — PERSIAPAN DATASET ✅
 
-**Target selesai**: Pertengahan minggu kedua
+- [x] Download dataset dari Kaggle
+  - sriramr (Pisang & Jeruk) + raghavrpotdar (Tomat)
 
-- [ ] Jalankan `CekFresh_train.ipynb` di Google Colab
-  - Upload notebook ke Colab atau buka via Google Drive
-  - Pastikan GPU aktif: Runtime → Change runtime type → GPU
+- [x] Extract dan susun dataset ke folder final
+  - Struktur: `train/fresh`, `train/rotten`, `val/`, `test/`
 
-- [ ] Training Phase 1: frozen base model
-  - Base MobileNet V2 di-freeze
-  - Latih hanya layer classifier baru
-  - Minimal 10 epoch
-  - Catat accuracy dan loss
+- [x] Preprocessing dataset
+  - Resize 224×224, split 70/15/15 (train/val/test)
+  - Total: 10.531 gambar
 
-- [ ] Training Phase 2: fine-tuning 30 layer terakhir
-  - Unfreeze 30 layer terakhir MobileNet V2
-  - Gunakan learning rate kecil (1e-5)
-  - Minimal 10 epoch tambahan
-  - Target: validation accuracy ≥ 85%
-
-- [ ] Simpan model ke `02_Model/saved/`
-  - File: `cekfresh_model.h5`
-  - File: `class_names.json`
-  - Download dari Colab ke lokal
-
-- [ ] Simpan grafik evaluasi ke `04_Evaluasi/grafik/`
-  - `accuracy_curve.png` — Training vs Validation Accuracy
-  - `loss_curve.png` — Training vs Validation Loss
-  - `confusion_matrix.png` — Confusion Matrix
-
-- [ ] Catat hasil akurasi di `04_Evaluasi/hasil/`
-  - Buat file `classification_report.txt`
-  - Catat: Precision, Recall, F1-Score per kelas
-  - Catat: Overall Accuracy, val_accuracy final
+- [x] Verifikasi jumlah gambar per kelas
+  - Pisang: 1.581 fresh / 2.224 rotten
+  - Jeruk: 1.466 fresh / 1.595 rotten
+  - Tomat: 981 fresh / 982 rotten
 
 ---
 
-## 💻 FASE 3 — APLIKASI STREAMLIT (Minggu 2)
+## 🤖 FASE 2 — TRAINING MODEL ✅
 
-**Target selesai**: Akhir minggu kedua
+- [x] Jalankan `fp_ai_kel8_final.ipynb` di Google Colab (GPU T4)
 
-- [ ] Letakkan file aplikasi di `03_App/`
-  - Salin `CekFresh_app.py` → `03_App/app.py`
-  - Salin `CekFresh_requirements.txt` → `03_App/requirements.txt`
-  - Pastikan path model di `app.py` sudah benar
+- [x] Training Phase 1: frozen base model
+  - Best val_accuracy: 99.58%
 
-- [ ] Test jalankan Streamlit
+- [x] Training Phase 2: fine-tuning 30 layer terakhir
+  - Best val_accuracy: 99.81%
+
+- [x] Simpan model ke `02_Model/saved/`
+  - `cekfresh_model.keras` ✅
+  - `class_names.json` ✅
+
+- [x] Simpan grafik evaluasi ke `04_Evaluasi/grafik/`
+  - `accuracy_loss_curve.png` ✅
+  - `confusion_matrix.png` ✅
+
+- [x] Catat hasil akurasi di `04_Evaluasi/hasil/`
+  - Test Accuracy: **99.70%**
+  - `classification_report.txt` ✅
+
+---
+
+## 💻 FASE 3 — APLIKASI STREAMLIT ✅
+
+- [x] `app.py` dan `requirements.txt` tersedia di `03_App/`
+
+- [x] Aplikasi berhasil jalan di `http://localhost:8501`
   ```bash
-  cd 03_App
-  pip install -r requirements.txt
-  streamlit run app.py
+  python -m streamlit run app.py
   ```
-  - Pastikan aplikasi terbuka di browser tanpa error
 
-- [ ] Verifikasi semua fitur berjalan
-  - [ ] Upload gambar berhasil
-  - [ ] Prediksi tampil dengan label yang benar
-  - [ ] Rekomendasi muncul sesuai label (Segar/Hampir Busuk/Busuk)
-  - [ ] Tampilan UI rapi dan informatif
+- [x] Semua fitur berjalan
+  - Upload gambar ✅
+  - Prediksi dengan 3 label (Segar/Hampir Busuk/Busuk) ✅
+  - Rekomendasi dan tips ✅
 
-- [ ] Perbaiki bug jika ada
-  - Dokumentasikan bug yang ditemukan
-  - Catat solusi yang diterapkan
+- [x] Demo ke dosen ✅ — 2 Juni 2026
+
+> ⚠️ **Bug tercatat**: Model bias pada Tomat busuk (terdeteksi Segar)
+> → Perlu re-train dengan dataset tomat lebih banyak
 
 ---
 
-## 📝 FASE 4 — LAPORAN (Minggu 2)
+### 🔧 Pengembangan Lanjutan (To-Do)
 
-**Target selesai**: Akhir minggu kedua
+- [ ] Fix bias tomat — tambah dataset & re-train model multiclass
+- [ ] Tambah deteksi jenis buah otomatis (multiclass: 6 kelas)
+- [ ] Fitur kamera langsung + toggle upload/kamera
+- [ ] UI/UX improvement
+- [ ] Push update ke GitHub setelah semua fix
 
-- [ ] Buat draft laporan di `05_Laporan/draft/`
-  - Nama file: `CekFresh_Laporan_Draft.docx`
-  - Gunakan template laporan dari kampus jika ada
+---
 
-- [ ] Isi semua bagian laporan:
-  - [ ] **BAB 1** — Latar belakang, rumusan masalah, tujuan
-  - [ ] **BAB 2** — Tinjauan pustaka (MobileNet V2, Transfer Learning, food waste)
-  - [ ] **BAB 3** — Metodologi (dataset, preprocessing, arsitektur, training)
-  - [ ] **BAB 4** — Hasil evaluasi + grafik dari `04_Evaluasi/grafik/`
-  - [ ] **BAB 5** — Kesimpulan dan saran
+## 📖 FASE 4 — USER GUIDE 🔄
 
-- [ ] Masukkan grafik dan tabel evaluasi
-  - Accuracy & Loss curve
-  - Confusion Matrix
-  - Tabel Classification Report
+> Dosen meminta User Guide (bukan laporan akademik)
+> Simpan di `05_UserGuide/`
 
-- [ ] Review dan finalisasi laporan di `05_Laporan/final/`
-  - Cek penulisan dan tata bahasa
-  - Cek format sitasi
-  - Simpan versi final: `CekFresh_Laporan_Final.docx` + `.pdf`
+- [ ] Buat draft User Guide di `05_UserGuide/draft/`
+  - Nama file: `CekFresh_UserGuide_Draft.pdf` / `.docx`
+
+- [ ] Isi User Guide:
+  - [ ] Deskripsi singkat aplikasi CekFresh
+  - [ ] Cara instalasi & menjalankan aplikasi
+  - [ ] Panduan penggunaan step-by-step (dengan screenshot)
+  - [ ] Penjelasan hasil deteksi & rekomendasi
+  - [ ] FAQ / Troubleshooting umum
+
+- [ ] Finalisasi di `05_UserGuide/final/`
+  - Simpan versi final: `CekFresh_UserGuide.pdf`
 
 ---
 
@@ -172,7 +147,7 @@
 ### Tips Training di Google Colab
 - Pastikan gunakan **GPU** (bukan CPU) untuk mempercepat training
 - Simpan model ke **Google Drive** agar tidak hilang jika sesi Colab berakhir
-- Gunakan `model.save('/content/drive/MyDrive/cekfresh_model.h5')`
+- Gunakan `model.save('/content/drive/MyDrive/CekFresh_Model/cekfresh_model.keras')`
 
 ### Target Akurasi
 - **Minimum**: 85% overall accuracy
