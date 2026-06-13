@@ -1,6 +1,6 @@
-# ✅ CHECKLIST PROYEK CEKFRESH
+# ✅ CHECKLIST PROYEK VIGORSCAN
 
-> **Proyek**: CekFresh — Freshness Detector & Food Waste Solution  
+> **Proyek**: VigorScan — Freshness Detector & Food Waste Solution  
 > **Deadline**: Pertengahan Juni 2026  
 > **Update terakhir**: 2 Juni 2026
 
@@ -50,7 +50,7 @@
   - Best val_accuracy: 99.81%
 
 - [x] Simpan model ke `02_Model/saved/`
-  - `cekfresh_model.keras` ✅
+  - `vigorscan_model.keras` ✅
   - `class_names.json` ✅
 
 - [x] Simpan grafik evaluasi ke `04_Evaluasi/grafik/`
@@ -100,17 +100,17 @@
 > Simpan di `05_UserGuide/`
 
 - [ ] Buat draft User Guide di `05_UserGuide/draft/`
-  - Nama file: `CekFresh_UserGuide_Draft.pdf` / `.docx`
+  - Nama file: `VigorScan_UserGuide_Draft.pdf` / `.docx`
 
 - [ ] Isi User Guide:
-  - [ ] Deskripsi singkat aplikasi CekFresh
+  - [ ] Deskripsi singkat aplikasi VigorScan
   - [ ] Cara instalasi & menjalankan aplikasi
   - [ ] Panduan penggunaan step-by-step (dengan screenshot)
   - [ ] Penjelasan hasil deteksi & rekomendasi
   - [ ] FAQ / Troubleshooting umum
 
 - [ ] Finalisasi di `05_UserGuide/final/`
-  - Simpan versi final: `CekFresh_UserGuide.pdf`
+  - Simpan versi final: `VigorScan_UserGuide.pdf`
 
 ---
 
@@ -147,7 +147,7 @@
 ### Tips Training di Google Colab
 - Pastikan gunakan **GPU** (bukan CPU) untuk mempercepat training
 - Simpan model ke **Google Drive** agar tidak hilang jika sesi Colab berakhir
-- Gunakan `model.save('/content/drive/MyDrive/CekFresh_Model/cekfresh_model.keras')`
+- Gunakan `model.save('/content/drive/MyDrive/VigorScan_Model/vigorscan_model.keras')`
 
 ### Target Akurasi
 - **Minimum**: 85% overall accuracy

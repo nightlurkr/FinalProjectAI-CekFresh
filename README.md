@@ -1,4 +1,4 @@
-# 🍃 CekFresh — Freshness Detector & Food Waste Solution
+# 🍃 VigorScan — Freshness Detector & Food Waste Solution
 
 > Aplikasi web berbasis AI untuk mendeteksi kelayakan jual buah dan sayuran dari foto.  
 > Final Project Mata Kuliah Artificial Intelligence / Machine Learning
@@ -7,7 +7,7 @@
 
 ## 📌 Deskripsi Proyek
 
-**CekFresh** adalah aplikasi web yang menggunakan *Transfer Learning* dengan arsitektur **MobileNet V2** untuk mengklasifikasikan kondisi buah dan sayur secara otomatis hanya dari foto. Aplikasi ini bertujuan membantu mengurangi food waste dengan memberikan rekomendasi tindakan berdasarkan tingkat kesegaran produk.
+**VigorScan** adalah aplikasi web yang menggunakan *Transfer Learning* dengan arsitektur **MobileNet V2** untuk mengklasifikasikan kondisi buah dan sayur secara otomatis hanya dari foto. Aplikasi ini bertujuan membantu mengurangi food waste dengan memberikan rekomendasi tindakan berdasarkan tingkat kesegaran produk.
 
 ### Buah & Sayur yang Didukung
 | Produk | Label Output |
@@ -34,7 +34,7 @@
 ## 📁 Struktur Folder
 
 ```
-CekFresh/
+VigorScan/
 ├── 01_Dataset/
 │   ├── raw/             # Dataset mentah dari Kaggle
 │   └── processed/       # Dataset setelah preprocessing
@@ -44,7 +44,7 @@ CekFresh/
 ├── 03_App/
 │   ├── app.py               # Aplikasi Streamlit
 │   ├── requirements.txt     # Daftar dependensi
-│   ├── cekfresh_model.keras # Model hasil training
+│   ├── vigorscan_model.keras # Model hasil training
 │   └── class_names.json     # Label kelas
 ├── 04_Evaluasi/
 │   ├── grafik/          # Plot accuracy, loss, confusion matrix
@@ -66,8 +66,8 @@ CekFresh/
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/nightlurkr/FinalProjectAI-CekFresh.git
-cd FinalProjectAI-CekFresh/03_App
+git clone https://github.com/nightlurkr/FinalProjectAI-VigorScan.git
+cd FinalProjectAI-VigorScan/03_App
 ```
 
 ### 2. Install Dependensi
@@ -79,7 +79,7 @@ pip install -r requirements.txt
 ### 3. Pastikan Model Tersedia
 
 Pastikan file berikut ada di folder `03_App/`:
-- `cekfresh_model.keras`
+- `vigorscan_model.keras`
 - `class_names.json`
 
 ### 4. Jalankan Aplikasi Streamlit
@@ -151,7 +151,7 @@ Hasil evaluasi tersimpan di `04_Evaluasi/`:
 ## 📖 User Guide
 
 Panduan penggunaan tersedia di `05_UserGuide/final/` mencakup:
-- Deskripsi singkat aplikasi CekFresh
+- Deskripsi singkat aplikasi VigorScan
 - Cara instalasi & menjalankan aplikasi
 - Panduan penggunaan step-by-step (dengan screenshot)
 - Penjelasan hasil deteksi & rekomendasi

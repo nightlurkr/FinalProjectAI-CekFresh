@@ -9,7 +9,7 @@ import os
 # KONFIGURASI HALAMAN
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="CekFresh — Freshness Detector",
+    page_title="VigorScan — Freshness Detector",
     page_icon="🍃",
     layout="centered"
 )
@@ -17,7 +17,8 @@ st.set_page_config(
 # ─────────────────────────────────────────────
 # PATH MODEL
 # ─────────────────────────────────────────────
-MODEL_PATH       = "cekfresh_model.keras"
+# Support rename lama (cekfresh) → baru (vigorscan)
+MODEL_PATH       = "vigorscan_model.keras" if os.path.exists("vigorscan_model.keras") else "cekfresh_model.keras"
 CLASS_NAMES_PATH = "class_names.json"
 
 # ─────────────────────────────────────────────
@@ -524,7 +525,7 @@ def show_result(img: Image.Image, filename: str, model, class_names: dict, show_
 
     except Exception as e:
         st.error(f"❌ Error memproses `{filename}`: {e}")
-        st.caption("Pastikan `cekfresh_model.keras` dan `class_names.json` ada di folder 03_App/")
+        st.caption("Pastikan `vigorscan_model.keras` dan `class_names.json` ada di folder 03_App/")
 
 
 # ─────────────────────────────────────────────
@@ -598,7 +599,7 @@ chip_tx  = "#e0f0d8" if is_dark else "#1a2e14"
 
 st.markdown(f"""
 <div style='text-align:center; padding: 8px 0 4px 0;'>
-  <h1 style='color:#16a34a; margin:0; font-size:2.2rem;'>🍃 CekFresh</h1>
+  <h1 style='color:#16a34a; margin:0; font-size:2.2rem;'>🍃 VigorScan</h1>
   <p style='color:{head_sub}; font-size:14px; margin:4px 0 12px 0;'>
     Freshness Detector &amp; Food Waste Solution &nbsp;·&nbsp;
     Deteksi kelayakan jual buah &amp; sayur dari foto menggunakan AI
@@ -691,7 +692,7 @@ with tab_camera:
 st.markdown("---")
 st.markdown(
     "<p style='text-align:center; color:#888; font-size:11px; margin:0;'>"
-    "CekFresh v2.0 &nbsp;·&nbsp; Final Project AI/ML &nbsp;·&nbsp; "
+    "VigorScan v2.0 &nbsp;·&nbsp; Final Project AI/ML &nbsp;·&nbsp; "
     "MobileNetV2 Transfer Learning &nbsp;·&nbsp; "
     "🍌 Pisang &nbsp; 🍊 Jeruk &nbsp; 🍅 Tomat"
     "</p>",
