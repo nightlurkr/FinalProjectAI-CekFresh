@@ -1,4 +1,20 @@
-"01_Dataset/" 
-"*.zip" 
-"__pycache__/" 
-"*.pyc" 
+# Dataset
+01_Dataset/
+*.zip
+
+# Model files (terlalu besar untuk GitHub, simpan di Google Drive)
+03_App/*.keras
+03_App/*.h5
+03_App/class_names.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Streamlit cache
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db

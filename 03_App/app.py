@@ -364,8 +364,11 @@ def parse_class_name(class_name: str):
 def preprocess_image(img: Image.Image) -> np.ndarray:
     img = img.convert("RGB")
     img = img.resize((224, 224))
-    arr = np.array(img, dtype=np.float32) / 255.0
-    return np.expand_dims(arr, axis=0)   # shape: (1, 224, 224, 3)
+    # EfficientNetV2S memiliki Rescaling layer internal di dalam arsitektur model.
+    # efficientnet_v2.preprocess_input adalah no-op — model menerima input [0, 255].
+    # JANGAN normalisasi di sini, biarkan model yang handle secara internal.
+    arr = np.array(img, dtype=np.float32)   # range [0, 255], tidak dinormalisasi
+    return np.expand_dims(arr, axis=0)       # shape: (1, 224, 224, 3)
 
 
 # ─────────────────────────────────────────────
@@ -429,7 +432,7 @@ def predict_freshness(img: Image.Image, model, class_names: dict):
 
 def rotten_score_to_label(rotten_score: float, fruit_label: str = "Produk"):
     """Konversi skor busuk (0.0–1.0) ke label, warna, badge, dan rekomendasi."""
-    if rotten_score < 0.30:
+    if rotten_score < 0.50:
         label  = "🟢 Segar"
         color  = "green"
         badge  = "✅ LAYAK JUAL"
