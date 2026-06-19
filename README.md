@@ -163,9 +163,9 @@ Panduan penggunaan tersedia di `05_UserGuide/final/` mencakup:
 
 | Nama | Peran |
 |------|-------|
-| *(Nama Anggota 1)* | Dataset & Preprocessing |
-| *(Nama Anggota 2)* | Model Training & Evaluasi |
-| *(Nama Anggota 3)* | Pengembangan Aplikasi Streamlit |
+| *Mey Rosalina/5027241004* | Dataset & Preprocessing |
+| *Nadia Fauziaazahra Kusumastuti/5027241094* | Model Training & Evaluasi |
+| *Ryan Adya Purwanto/5027231046* | Pengembangan Aplikasi Streamlit |
 
 ---
 
@@ -179,7 +179,6 @@ Panduan penggunaan tersedia di `05_UserGuide/final/` mencakup:
 | Fase 4 | Penulisan Laporan | 🔄 Dalam Proses |
 | Fase 5 | Pendaftaran HKI | ⏳ Menunggu |
 
-**Deadline**: Pertengahan Juni 2026
 
 ---
 
