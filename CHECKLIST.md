@@ -1,8 +1,8 @@
 # ✅ CHECKLIST PROYEK VIGORSCAN
 
-> **Proyek**: VigorScan — Freshness Detector & Food Waste Solution  
-> **Deadline**: Pertengahan Juni 2026  
-> **Update terakhir**: 2 Juni 2026
+> **Proyek**: VigorScan — Freshness Detector & Food Waste Solution
+> **Deadline**: Pertengahan Juni 2026
+> **Update terakhir**: 19 Juni 2026
 
 ---
 
@@ -10,23 +10,23 @@
 
 | Fase | Status | Selesai |
 |------|--------|---------|
-| Fase 1 — Persiapan | ✅ Selesai | 4 / 4 |
+| Fase 1 — Persiapan Dataset | ✅ Selesai | 4 / 4 |
 | Fase 2 — Training Model | ✅ Selesai | 6 / 6 |
-| Fase 3 — Aplikasi | ✅ Selesai | 4 / 4 |
-| Fase 4 — User Guide | 🔄 Dalam Proses | 0 / 3 |
+| Fase 3 — Aplikasi Streamlit | ✅ Selesai | 9 / 9 |
+| Fase 4 — User Guide | ✅ Selesai | 3 / 3 |
 | Fase 5 — HKI | ⏳ Menunggu | 0 / 4 |
 
-**Total**: 14 / 21 tugas selesai
+**Total**: 22 / 26 tugas selesai (fase HKI dikerjakan setelah demo)
 
 ---
 
 ## 🗓️ FASE 1 — PERSIAPAN DATASET ✅
 
 - [x] Download dataset dari Kaggle
-  - sriramr (Pisang & Jeruk) + raghavrpotdar (Tomat)
+  - sriramr (Pisang & Jeruk) + raghavrpotdar (Tomat) + fruits-360 (Tomat segar)
 
 - [x] Extract dan susun dataset ke folder final
-  - Struktur: `train/fresh`, `train/rotten`, `val/`, `test/`
+  - Struktur multiclass: `train/freshbanana`, `train/rottenbanana`, ..., `val/`, `test/`
 
 - [x] Preprocessing dataset
   - Resize 224×224, split 70/15/15 (train/val/test)
@@ -42,16 +42,17 @@
 ## 🤖 FASE 2 — TRAINING MODEL ✅
 
 - [x] Jalankan `fp_ai_kel8_final.ipynb` di Google Colab (GPU T4)
+  - **Arsitektur**: EfficientNetV2-S (upgrade dari MobileNetV2 untuk mengatasi class imbalance)
 
-- [x] Training Phase 1: frozen base model
-  - Best val_accuracy: 99.58%
+- [x] Training Phase 1: frozen base model + class_weight balanced
+  - 10 epoch dengan classifier baru
 
-- [x] Training Phase 2: fine-tuning 30 layer terakhir
-  - Best val_accuracy: 99.81%
+- [x] Training Phase 2: fine-tuning 50 layer terakhir
+  - 20 epoch, learning rate 1e-5
 
-- [x] Simpan model ke `02_Model/saved/`
+- [x] Simpan model ke `02_Model/saved/` dan `03_App/`
   - `vigorscan_model.keras` ✅
-  - `class_names.json` ✅
+  - `class_names.json` (6 kelas multiclass) ✅
 
 - [x] Simpan grafik evaluasi ke `04_Evaluasi/grafik/`
   - `accuracy_loss_curve.png` ✅
@@ -68,58 +69,57 @@
 - [x] `app.py` dan `requirements.txt` tersedia di `03_App/`
 
 - [x] Aplikasi berhasil jalan di `http://localhost:8501`
+
   ```bash
   python -m streamlit run app.py
   ```
 
-- [x] Semua fitur berjalan
-  - Upload gambar ✅
-  - Prediksi dengan 3 label (Segar/Hampir Busuk/Busuk) ✅
-  - Rekomendasi dan tips ✅
+- [x] Multiclass detection (6 kelas, deteksi jenis buah otomatis)
 
-- [x] Demo ke dosen ✅ — 2 Juni 2026
+- [x] Fitur multi-upload (batch detection)
 
-> ⚠️ **Bug tercatat**: Model bias pada Tomat busuk (terdeteksi Segar)
-> → Perlu re-train dengan dataset tomat lebih banyak
+- [x] Fitur kamera langsung (camera input)
 
----
+- [x] Toggle Dark / Light mode
 
-### 🔧 Pengembangan Lanjutan (To-Do)
+- [x] UI/UX redesign — glassmorphism hero, custom colored bars (hijau/merah),
+      Plus Jakarta Sans typography, pill-style tabs, animated transitions,
+      session state persistence (hasil tidak hilang saat toggle tema)
 
-- [ ] Fix bias tomat — tambah dataset & re-train model multiclass
-- [ ] Tambah deteksi jenis buah otomatis (multiclass: 6 kelas)
-- [ ] Fitur kamera langsung + toggle upload/kamera
-- [ ] UI/UX improvement
-- [ ] Push update ke GitHub setelah semua fix
+- [x] Color rescue post-processing
+      Targeted HSV color verification untuk konflik orange↔tomato.
+      Daun hijau di-exclude dari hitungan rasio. Banana tidak disentuh.
+
+- [x] Push ke GitHub & demo internal
 
 ---
 
-## 📖 FASE 4 — USER GUIDE 🔄
+## 📖 FASE 4 — USER GUIDE ✅
 
 > Dosen meminta User Guide (bukan laporan akademik)
 > Simpan di `05_UserGuide/`
 
-- [ ] Buat draft User Guide di `05_UserGuide/draft/`
-  - Nama file: `VigorScan_UserGuide_Draft.pdf` / `.docx`
+- [x] Buat draft User Guide di `05_UserGuide/draft/`
+  - `CekFresh_UserGuide_Draft.docx` (legacy)
 
-- [ ] Isi User Guide:
-  - [ ] Deskripsi singkat aplikasi VigorScan
-  - [ ] Cara instalasi & menjalankan aplikasi
-  - [ ] Panduan penggunaan step-by-step (dengan screenshot)
-  - [ ] Penjelasan hasil deteksi & rekomendasi
-  - [ ] FAQ / Troubleshooting umum
+- [x] Finalisasi di `05_UserGuide/final/`
+  - `VigorScan_UserGuide.docx` ✅
 
-- [ ] Finalisasi di `05_UserGuide/final/`
-  - Simpan versi final: `VigorScan_UserGuide.pdf`
+- [x] Konten User Guide
+  - Deskripsi aplikasi VigorScan ✅
+  - Cara instalasi & menjalankan aplikasi ✅
+  - Panduan penggunaan step-by-step ✅
+  - Penjelasan hasil deteksi & rekomendasi ✅
+  - FAQ / Troubleshooting ✅
 
 ---
 
-## 📋 FASE 5 — PENDAFTARAN HKI (Setelah Deadline)
+## 📋 FASE 5 — PENDAFTARAN HKI (Setelah Demo)
 
 **Target selesai**: Setelah deadline Juni 2026
 
 - [ ] Cari persyaratan pendaftaran HKI Program Komputer di DJKI
-  - Website: https://djki.kemenkumham.go.id
+  - Website: <https://djki.kemenkumham.go.id>
   - Pilih: Hak Cipta → Program Komputer
   - Catat dokumen yang dibutuhkan
 
@@ -144,28 +144,35 @@
 
 ## 📌 CATATAN PENTING
 
-### Tips Training di Google Colab
-- Pastikan gunakan **GPU** (bukan CPU) untuk mempercepat training
-- Simpan model ke **Google Drive** agar tidak hilang jika sesi Colab berakhir
-- Gunakan `model.save('/content/drive/MyDrive/VigorScan_Model/vigorscan_model.keras')`
+### Engineering Decisions yang Bisa Dijelaskan di Q&A
 
-### Target Akurasi
-- **Minimum**: 85% overall accuracy
-- **Ideal**: 90%+ per kelas
+**1. Kenapa upgrade ke EfficientNetV2-S dari MobileNetV2?**
+MobileNetV2 lemah pada class imbalance kami (tomat 1.963 vs pisang 3.805). EfficientNetV2-S kapasitas lebih besar + compound scaling, plus dipasang `class_weight='balanced'` untuk handle imbalance secara eksplisit.
 
-### Sistem Label & Rekomendasi
+**2. Kenapa preprocessing pakai range [0,255], bukan normalisasi?**
+EfficientNetV2-S punya internal `Rescaling` layer di arsitekturnya, sehingga `tf.keras.applications.efficientnet_v2.preprocess_input` adalah no-op. Normalisasi manual akan menyebabkan double-rescaling dan input out-of-distribution.
+
+**3. Kenapa pakai color rescue?**
+Dataset training (Western sources) tidak mencakup tomat di tangkai dengan daun lebat — model rentan misclassify ke orange karena hue red-orange berdekatan. Color rescue HSV memverifikasi hue dominant di antara pixel buah (daun di-exclude), khusus untuk konflik orange↔tomato.
+
+**4. Kenapa color rescue tidak menyentuh banana?**
+Pisang busuk punya bintik coklat yang bisa salah dianalisis sebagai orange (brown ≈ low-saturation orange). Demi safety, banana branch dibiarkan murni dari model.
+
+### Threshold Klasifikasi
+
 ```
-Segar        → "Produk layak jual, simpan di kondisi optimal"
-Hampir Busuk → "Segera jual/gunakan, pertimbangkan diskon"  
-Busuk        → "Tidak layak jual, pisahkan untuk kompos"
+Segar         → rotten_score < 0.50  (Layak Jual)
+Hampir Busuk  → 0.50 ≤ rotten_score < 0.65  (Segera Jual/Gunakan)
+Busuk         → rotten_score ≥ 0.65  (Tidak Layak Jual)
 ```
 
 ### Link Berguna
-- Dataset Kaggle: https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification
-- Google Colab: https://colab.research.google.com
-- Streamlit Docs: https://docs.streamlit.io
-- DJKI HKI: https://djki.kemenkumham.go.id
-- e-HKI Portal: https://e-hakcipta.dgip.go.id
+
+- Dataset Kaggle: <https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification>
+- Google Colab: <https://colab.research.google.com>
+- Streamlit Docs: <https://docs.streamlit.io>
+- DJKI HKI: <https://djki.kemenkumham.go.id>
+- e-HKI Portal: <https://e-hakcipta.dgip.go.id>
 
 ---
 
