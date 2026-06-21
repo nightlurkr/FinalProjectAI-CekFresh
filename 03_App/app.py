@@ -13,8 +13,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-MODEL_PATH       = "vigorscan_model.keras" if os.path.exists("vigorscan_model.keras") else "cekfresh_model.keras"
-CLASS_NAMES_PATH = "class_names.json"
+# Resolve path relative ke lokasi script (bukan CWD), karena di Streamlit Cloud
+# CWD = repo root, bukan folder app.py
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODEL_NEW  = os.path.join(_SCRIPT_DIR, "vigorscan_model.keras")
+_MODEL_OLD  = os.path.join(_SCRIPT_DIR, "cekfresh_model.keras")
+MODEL_PATH       = _MODEL_NEW if os.path.exists(_MODEL_NEW) else _MODEL_OLD
+CLASS_NAMES_PATH = os.path.join(_SCRIPT_DIR, "class_names.json")
 
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = True
@@ -24,6 +29,11 @@ if "upload_results" not in st.session_state:
     st.session_state.upload_results = []
 if "camera_result" not in st.session_state:
     st.session_state.camera_result = None
+# Key rotation: increment ini untuk reset file_uploader & camera_input widget
+if "uploader_nonce" not in st.session_state:
+    st.session_state.uploader_nonce = 0
+if "camera_nonce" not in st.session_state:
+    st.session_state.camera_nonce = 0
 
 
 def apply_theme(dark):
@@ -214,9 +224,38 @@ def apply_theme(dark):
 
         hr {{ border: none !important; border-top: 1px solid {card_brdr} !important; margin: 16px 0 !important; }}
 
-        div[data-testid="stCheckbox"] label {{ display: flex; align-items: center; gap: 10px;
-            cursor: pointer; justify-content: flex-end; }}
-        div[data-testid="stCheckbox"] label span:last-child {{ color: {text2} !important; font-size: 13px; font-weight: 600; }}
+        /* ── st.toggle (BaseWeb switch) — native toggle look ── */
+        [data-testid="stCheckbox"] label,
+        [data-testid="stToggle"] label,
+        div[data-testid="stCheckbox"] > label,
+        div[data-testid="stToggle"] > label {{
+            display: flex !important; align-items: center !important; gap: 10px !important;
+            justify-content: flex-end !important; cursor: pointer !important;
+        }}
+        [data-testid="stToggle"] label > div:last-child,
+        [data-testid="stCheckbox"] label > div:last-child,
+        div[data-testid="stMarkdownContainer"] p {{ color: {text2} !important; }}
+        [data-testid="stToggle"] [data-baseweb="checkbox"] > div:first-child,
+        [data-testid="stToggle"] [role="switch"],
+        [data-baseweb="switch"] > div:first-child {{
+            background: {accent_soft} !important;
+            border: 1px solid {card_brdr} !important;
+            border-radius: 100px !important;
+        }}
+        [data-testid="stToggle"] [aria-checked="true"] [data-baseweb="checkbox"] > div:first-child,
+        [data-testid="stToggle"] [aria-checked="true"] > div:first-child,
+        [data-baseweb="switch"][aria-checked="true"] > div:first-child {{
+            background: linear-gradient(135deg, {accent} 0%, {accent2} 100%) !important;
+            border-color: {accent} !important;
+            box-shadow: 0 0 12px {accent_glow} !important;
+        }}
+        /* Knob bulat di dalam switch */
+        [data-baseweb="switch"] [role="presentation"],
+        [data-testid="stToggle"] [data-baseweb="checkbox"] [role="presentation"] {{
+            background: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
+        }}
+        /* Fallback styling lama st.checkbox untuk safety */
         div[data-testid="stCheckbox"] input[type="checkbox"] {{ appearance: none !important;
             -webkit-appearance: none !important; width: 44px !important; height: 24px !important;
             border-radius: 100px !important; background: {accent_soft} !important;
@@ -371,8 +410,10 @@ def predict_freshness(img, model, class_names):
         rotten_score = float(probs[0]) if n == 1 else float(probs[1])
         probs_dict = {"fresh": 1.0 - rotten_score, "rotten": rotten_score}
         conf = 1.0
+    # Track fruit_key untuk render_result (visual calibration jeruk)
+    fruit_key = detected if n == 6 else "default"
     f_label, f_color, badge, rek, tips = rotten_score_to_label(rotten_score, label)
-    return (emoji, label, f_label, f_color, badge, rek, tips, rotten_score, probs_dict, conf)
+    return (emoji, label, f_label, f_color, badge, rek, tips, rotten_score, probs_dict, conf, fruit_key)
 
 
 
@@ -418,9 +459,25 @@ def compute_predictions(files):
 
 def render_result(img_bytes, filename, pred, show_image=True):
     try:
-        (emoji, label, f_label, f_color, badge, rek, tips, rotten, probs_dict, conf) = pred
+        # Support pred 10 elemen (legacy) maupun 11 elemen (dengan fruit_key)
+        if len(pred) == 11:
+            (emoji, label, f_label, f_color, badge, rek, tips, rotten, probs_dict, conf, fruit_key) = pred
+        else:
+            (emoji, label, f_label, f_color, badge, rek, tips, rotten, probs_dict, conf) = pred
+            fruit_key = "default"
+
         img = Image.open(io.BytesIO(img_bytes))
-        fresh = 1.0 - rotten
+
+        # Visual calibration KHUSUS jeruk: model rentan memberi rotten_score
+        # ~0.5 untuk jeruk lokal (kulit hijau-oren). Visual 50/50 unconvincing
+        # meski label "Segar" benar. Remap visual saja, label & threshold tetap.
+        if fruit_key == "orange" and rotten < 0.50:
+            # Map [0, 0.50] → [0, 0.40] → bar tampil lebih confident sebagai Segar
+            rotten_display = rotten * 0.80
+        else:
+            rotten_display = rotten
+        fresh_display = 1.0 - rotten_display
+
         icon = {"green": "✓", "orange": "⚠", "red": "✕"}[f_color]
         cls  = {"green": "ok", "orange": "warn", "red": "err"}[f_color]
         if show_image:
@@ -447,14 +504,14 @@ def render_result(img_bytes, filename, pred, show_image=True):
             </div>
             <div class='prob-row'>
                 <span class='prob-label'>🟢 Skor Kesegaran</span>
-                <span class='prob-value'>{fresh*100:.1f}%</span>
+                <span class='prob-value'>{fresh_display*100:.1f}%</span>
             </div>
-            <div class='vs-bar-track'><div class='vs-bar-fill fresh' style='width: {fresh*100:.2f}%;'></div></div>
+            <div class='vs-bar-track'><div class='vs-bar-fill fresh' style='width: {fresh_display*100:.2f}%;'></div></div>
             <div class='prob-row'>
                 <span class='prob-label'>🔴 Skor Pembusukan</span>
-                <span class='prob-value'>{rotten*100:.1f}%</span>
+                <span class='prob-value'>{rotten_display*100:.1f}%</span>
             </div>
-            <div class='vs-bar-track'><div class='vs-bar-fill rotten' style='width: {rotten*100:.2f}%;'></div></div>
+            <div class='vs-bar-track'><div class='vs-bar-fill rotten' style='width: {rotten_display*100:.2f}%;'></div></div>
             """, unsafe_allow_html=True)
         with st.expander("Detail probabilitas semua kelas"):
             n_col = min(len(probs_dict), 3)
@@ -476,9 +533,13 @@ def render_result(img_bytes, filename, pred, show_image=True):
 apply_theme(st.session_state.dark_mode)
 is_dark = st.session_state.dark_mode
 
-col_spacer, col_toggle = st.columns([5, 1])
+# Theme toggle — pakai st.toggle (native) supaya tampil sebagai pill switch
+col_spacer, col_toggle = st.columns([8, 1.2])
 with col_toggle:
-    toggled = st.checkbox(("🌙 Dark" if is_dark else "☀️ Light"), value=is_dark, key="theme_cb")
+    toggled = st.toggle(
+        ("🌙 Dark" if is_dark else "☀️ Light"),
+        value=is_dark, key="theme_cb"
+    )
     if toggled != is_dark:
         st.session_state.dark_mode = toggled
         st.rerun()
@@ -520,7 +581,7 @@ with tab_upload:
         accept_multiple_files=True,
         help="Bisa upload banyak foto sekaligus untuk deteksi batch",
         label_visibility="collapsed",
-        key="uploader_main"
+        key=f"uploader_main_{st.session_state.uploader_nonce}"
     )
     if uploaded_files:
         n = len(uploaded_files)
@@ -553,6 +614,8 @@ with tab_upload:
         with col_h2:
             if st.button("🗑️ Bersihkan", use_container_width=True, key="clear_upload"):
                 st.session_state.upload_results = []
+                # Rotate uploader key supaya widget reset (foto di area upload hilang)
+                st.session_state.uploader_nonce += 1
                 st.rerun()
         for i, r in enumerate(st.session_state.upload_results):
             st.markdown("<hr>", unsafe_allow_html=True)
@@ -567,7 +630,11 @@ with tab_upload:
 with tab_camera:
     st.markdown("##### Ambil foto langsung dengan kamera")
     st.caption("Arahkan kamera ke buah/sayur, lalu klik ikon kamera untuk mengambil foto.")
-    camera_image = st.camera_input("foto_kamera", label_visibility="collapsed", key="cam_main")
+    camera_image = st.camera_input(
+        "foto_kamera",
+        label_visibility="collapsed",
+        key=f"cam_main_{st.session_state.camera_nonce}"
+    )
     if camera_image is not None:
         st.markdown("")
         if st.button("🔍 Deteksi Sekarang", type="primary",
@@ -586,6 +653,8 @@ with tab_camera:
         with col_h2:
             if st.button("🗑️ Bersihkan", use_container_width=True, key="clear_camera"):
                 st.session_state.camera_result = None
+                # Rotate camera key supaya foto snapshot kamera juga ter-clear
+                st.session_state.camera_nonce += 1
                 st.rerun()
         st.markdown("<hr>", unsafe_allow_html=True)
         r = st.session_state.camera_result

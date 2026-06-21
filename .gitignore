@@ -2,10 +2,15 @@
 01_Dataset/
 *.zip
 
-# Model files (terlalu besar untuk GitHub, simpan di Google Drive)
-03_App/*.keras
-03_App/*.h5
-03_App/class_names.json
+# Model files — tracked via Git LFS, jangan di-ignore
+# (kalau mau exclude lagi: hapus comment di bawah)
+# 03_App/*.keras
+# 03_App/*.h5
+# 03_App/class_names.json
+
+# Backup model di 02_Model/saved (legacy, ukurannya besar)
+02_Model/saved/*.keras
+02_Model/saved/*.h5
 
 # Python cache
 __pycache__/
