@@ -405,6 +405,33 @@ def predict_freshness(img, model, class_names):
             conf = float(fruit_scores[detected]) if detected in fruit_scores else 1.0
 
         probs_dict = {class_names[i]: float(probs[i]) for i in range(n)}
+
+        # ── REJECT FALLBACK: foto bukan buah/sayur target ──
+        # Kombinasi 3 signal: low confidence, no fruit-color pixels, ambigu top1↔top2
+        # Hanya aktif kalau color_override TIDAK fire (kalau warna sudah kuat trust itu)
+        sorted_scores = sorted(fruit_scores.values(), reverse=True)
+        top1 = sorted_scores[0] if sorted_scores else 0.0
+        top2 = sorted_scores[1] if len(sorted_scores) > 1 else 0.0
+        margin = top1 - top2
+
+        reject_signals = []
+        if top1 < 0.40:
+            reject_signals.append("low_confidence")
+        if sig["fruit_n"] < 150:
+            reject_signals.append("no_fruit_color")
+        if margin < 0.10 and top1 < 0.55:
+            reject_signals.append("ambiguous_top")
+
+        if (not color_override) and reject_signals:
+            return (
+                "❓", "Tidak Terdeteksi", "-", "gray",
+                "BUKAN BUAH/SAYUR TARGET",
+                "Foto tidak mengandung Pisang, Jeruk, atau Tomat yang dapat terdeteksi dengan jelas. "
+                "Coba foto dengan pencahayaan cukup, buah di tengah, dan background sederhana.",
+                "Sistem ini dilatih spesifik untuk 3 jenis buah/sayur. "
+                "Foto lain (orang, objek, makanan lain) akan dianggap tidak terdeteksi.",
+                0.0, probs_dict, float(top1), "unknown"
+            )
     else:
         emoji, label = "🌿", "Produk"
         rotten_score = float(probs[0]) if n == 1 else float(probs[1])
@@ -467,6 +494,41 @@ def render_result(img_bytes, filename, pred, show_image=True):
             fruit_key = "default"
 
         img = Image.open(io.BytesIO(img_bytes))
+
+        # ── REJECT FALLBACK: foto bukan buah/sayur target ──
+        if fruit_key == "unknown":
+            if show_image:
+                col_img, col_res = st.columns([1, 1.2], gap="medium")
+                with col_img:
+                    st.image(img, use_container_width=True)
+            else:
+                col_res = st.container()
+            with col_res:
+                st.markdown(f"""
+                <div class='result-header' style='border-color: rgba(180,180,180,0.3);'>
+                    <div class='fruit-emoji-big'>{emoji}</div>
+                    <div>
+                        <p class='fruit-label'>{label}</p>
+                        <p class='fruit-sub'>Top-1 model: {conf*100:.1f}% (di bawah threshold)</p>
+                    </div>
+                </div>
+                <div class='status-badge warn'>
+                    <div class='status-icon'>!</div>
+                    <div>
+                        <div class='status-text-main'>{badge}</div>
+                        <div class='status-text-sub'>Sistem hanya mendukung Pisang, Jeruk, dan Tomat</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with st.expander("Detail probabilitas model (untuk transparansi)"):
+                n_col = min(len(probs_dict), 3)
+                cols = st.columns(n_col)
+                for i, (cls_name, prob) in enumerate(sorted(probs_dict.items(), key=lambda x: -x[1])):
+                    with cols[i % n_col]:
+                        st.metric(cls_name, f"{prob*100:.1f}%")
+            st.warning(f"**🔍 Info —** {rek}")
+            st.info(f"💡 **Catatan —** {tips}")
+            return
 
         # Visual calibration KHUSUS jeruk: model rentan memberi rotten_score
         # ~0.5 untuk jeruk lokal (kulit hijau-oren). Visual 50/50 unconvincing
@@ -602,6 +664,7 @@ with tab_upload:
             <p class='empty-sub'>Pisang 🍌 · Jeruk 🍊 · Tomat 🍅 &nbsp;—&nbsp; bisa multi-foto sekaligus</p>
         </div>
         """, unsafe_allow_html=True)
+
     if st.session_state.upload_results:
         n_res = len(st.session_state.upload_results)
         col_h1, col_h2 = st.columns([3, 1])
@@ -614,7 +677,6 @@ with tab_upload:
         with col_h2:
             if st.button("🗑️ Bersihkan", use_container_width=True, key="clear_upload"):
                 st.session_state.upload_results = []
-                # Rotate uploader key supaya widget reset (foto di area upload hilang)
                 st.session_state.uploader_nonce += 1
                 st.rerun()
         for i, r in enumerate(st.session_state.upload_results):
@@ -653,7 +715,6 @@ with tab_camera:
         with col_h2:
             if st.button("🗑️ Bersihkan", use_container_width=True, key="clear_camera"):
                 st.session_state.camera_result = None
-                # Rotate camera key supaya foto snapshot kamera juga ter-clear
                 st.session_state.camera_nonce += 1
                 st.rerun()
         st.markdown("<hr>", unsafe_allow_html=True)
