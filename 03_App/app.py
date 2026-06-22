@@ -347,6 +347,50 @@ def color_signature(img):
     }
 
 
+def banana_decay_signal(img):
+    """
+    Detect WHITE MOLD pada pisang yang model tidak catch (fungal infection).
+    Dark rot signal SENGAJA TIDAK dipakai karena terlalu sering false-positive
+    pada background gelap (meja kayu/dinding). White mold lebih reliable karena
+    saturasi rendah JARANG ada pada wood/skin/object normal.
+    """
+    arr = np.array(img.convert("RGB").resize((140, 140))).astype(np.float32)
+    R, G, B = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    maxc = np.maximum(np.maximum(R, G), B)
+    minc = np.minimum(np.minimum(R, G), B)
+    delta = maxc - minc
+    sat = np.where(maxc > 0, delta / np.maximum(maxc, 1.0), 0)
+    val = maxc / 255.0
+    safe = np.where(delta == 0, 1.0, delta)
+    hue = np.zeros_like(R)
+    mr = (maxc == R) & (delta > 0)
+    mg = (maxc == G) & (delta > 0)
+    mb = (maxc == B) & (delta > 0)
+    hue[mr] = ((G[mr] - B[mr]) / safe[mr]) % 6
+    hue[mg] = ((B[mg] - R[mg]) / safe[mg]) + 2
+    hue[mb] = ((R[mb] - G[mb]) / safe[mb]) + 4
+    hue = hue * 60.0
+
+    # Yellow pisang area (hue 40-70°, saturasi cukup, value cukup)
+    yellow_n = int(((sat > 0.40) & (val > 0.45) & (hue >= 40) & (hue < 70)).sum())
+    if yellow_n < 400:
+        return {"decay_ratio": 0.0, "yellow_n": yellow_n, "decay_n": 0}
+
+    # WHITE MOLD ONLY: saturasi sangat rendah, value sedang (bukan pure white BG, bukan kayu)
+    # Wood: sat > 0.20 → ter-exclude
+    # Pure white BG: val > 0.88 → ter-exclude
+    # Skin tone: sat > 0.20 → ter-exclude
+    white_mold = (sat < 0.12) & (val > 0.60) & (val < 0.85)
+    decay_n = int(white_mold.sum())
+
+    # Safety: kalau "decay" >> yellow, kemungkinan deteksi BG bukan mold real
+    if decay_n > yellow_n * 1.5:
+        return {"decay_ratio": 0.0, "yellow_n": yellow_n, "decay_n": decay_n}
+
+    ratio = decay_n / max(yellow_n + decay_n, 1)
+    return {"decay_ratio": float(ratio), "yellow_n": yellow_n, "decay_n": decay_n}
+
+
 def predict_freshness(img, model, class_names):
     arr = preprocess_image(img)
     probs = model.predict(arr, verbose=0)[0]
@@ -390,6 +434,18 @@ def predict_freshness(img, model, class_names):
         p_rotten = probs[name_to_idx.get(rn, 1)]
         total = p_fresh + p_rotten
         rotten_score = float(p_rotten / total) if total > 1e-9 else 0.5
+
+        # ── BANANA DECAY RESCUE ──
+        # Model training tidak punya white-mold / fungal banana, hanya brown spots.
+        # Detect signal mold/dark rot via color heuristic dan override rotten_score.
+        if detected == "banana":
+            decay = banana_decay_signal(img)
+            if decay["decay_ratio"] > 0.25:
+                # Pisang dengan >25% area decay → boost ke busuk
+                rotten_score = max(rotten_score, 0.75)
+            elif decay["decay_ratio"] > 0.15:
+                # Pisang dengan 15-25% area decay → minimal hampir busuk
+                rotten_score = max(rotten_score, 0.55)
 
         # Saat override aktif, model's freshness signal untuk target fruit
         # tidak reliable (karena model awalnya tidak pilih buah itu).
