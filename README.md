@@ -17,9 +17,9 @@
 
 | Produk | Label Output |
 |--------|-------------|
-| 🍌 Pisang | Segar / Hampir Busuk / Busuk |
-| 🍊 Jeruk | Segar / Hampir Busuk / Busuk |
-| 🍅 Tomat | Segar / Hampir Busuk / Busuk |
+| 🍌 Pisang | Segar / Busuk |
+| 🍊 Jeruk | Segar / Busuk |
+| 🍅 Tomat | Segar / Busuk |
 
 Model dilatih sebagai **multiclass 6 kelas**: kombinasi 3 jenis × 2 kondisi (`freshbanana`, `rottenbanana`, `freshorange`, `rottenorange`, `freshtomato`, `rottentomato`).
 
@@ -138,13 +138,12 @@ Aggregate per-buah: `score_pisang = p(freshbanana) + p(rottenbanana)`, dan seter
 rotten_score = p(rotten_X) / (p(fresh_X) + p(rotten_X))
 ```
 
-### Sistem Label 3 Tingkat
+### Sistem Label 2 Tingkat
 
 | Rotten Score | Label | Status |
 |-------------|-------|--------|
 | < 50% | 🟢 Segar | ✅ Layak Jual |
-| 50% – 65% | 🟡 Hampir Busuk | ⚠️ Segera Jual / Gunakan |
-| > 65% | 🔴 Busuk | ❌ Tidak Layak Jual |
+| ≥ 50% | 🔴 Busuk | ❌ Tidak Layak Jual |
 
 ### 🎨 Post-processing Heuristics
 
@@ -198,7 +197,9 @@ Hasil evaluasi tersimpan di `04_Evaluasi/`:
 
 ## 📖 User Guide
 
-Panduan penggunaan tersedia di `05_UserGuide/final/VigorScan_UserGuide.docx` mencakup:
+🎥 **Video Tutorial Pemakaian:** [youtu.be/vHTDnZPIGYI](https://youtu.be/vHTDnZPIGYI)
+
+Panduan penggunaan tertulis tersedia di `05_UserGuide/final/VigorScan_UserGuide.docx` mencakup:
 
 - Deskripsi singkat aplikasi VigorScan
 - Cara instalasi & menjalankan aplikasi
