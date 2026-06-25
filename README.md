@@ -5,6 +5,10 @@
 
 ---
 
+🌐 **Live Demo:** [vigorscan.streamlit.app](https://vigorscan.streamlit.app)
+
+---
+
 ## 📌 Deskripsi Proyek
 
 **VigorScan** adalah aplikasi web yang menggunakan *Transfer Learning* dengan arsitektur **EfficientNetV2-S** untuk mengklasifikasikan jenis dan kondisi buah secara otomatis dari foto. Aplikasi ini membantu pedagang & distributor mengurangi food waste dengan memberikan rekomendasi tindakan berdasarkan tingkat kesegaran produk.
@@ -142,16 +146,26 @@ rotten_score = p(rotten_X) / (p(fresh_X) + p(rotten_X))
 | 50% – 65% | 🟡 Hampir Busuk | ⚠️ Segera Jual / Gunakan |
 | > 65% | 🔴 Busuk | ❌ Tidak Layak Jual |
 
-### 🎨 Color Rescue Post-processing
+### 🎨 Post-processing Heuristics
 
-Untuk handle dataset distribution shift (training data Western single-fruit-on-white-bg vs use case Indonesia multi-buah dengan daun), VigorScan menerapkan **targeted HSV color verification** khusus untuk konflik **orange↔tomato** (karena hue red & orange sangat dekat di color space):
+VigorScan menerapkan beberapa lapisan post-processing untuk handle dataset distribution shift (training data Western single-fruit-on-white-bg vs use case Indonesia yang variatif):
 
-- Analisis warna dominan di antara pixel **berwarna buah** saja (red/orange/yellow); pixel hijau (daun) di-exclude dari hitungan rasio
-- Override hanya aktif jika `dominant_ratio > 1.4×` warna lawan AND di-trigger spesifik untuk konflik orange/tomato
-- Saat override aktif, freshness signal di-derive dari brightness warna:
-  - Merah terang & saturasi tinggi → Segar
-  - Merah gelap (value rendah) → Busuk
-- **Pisang (banana) tidak disentuh** oleh color rescue — prediksi murni dari model
+**1. HSV Color Rescue (orange ↔ tomato)**
+Konflik hue red (0–18°) dan orange (18–45°) sangat dekat di color space. Analisis warna dominan di antara pixel berwarna buah saja (hijau daun & skin tone di-exclude); override hanya aktif jika `dominant_ratio > 1.8×` warna lawan. Saat override aktif, freshness signal di-derive dari brightness warna (merah terang = segar, merah gelap = busuk).
+
+**2. Skin Tone Filter**
+Pixel skin (hue 5–40°, sat 0.15–0.50, val 0.45–0.85) di-exclude dari hitungan rasio warna supaya foto buah yang dipegang tangan tidak ter-bias.
+
+**3. Banana White Mold Detector**
+Model training utama hanya cover brown spots untuk pisang busuk. Heuristic tambahan deteksi white mold (sat < 0.12, val 0.60–0.85) khusus area pisang; kalau decay ratio > 25% area pisang → boost ke Busuk.
+
+**4. Reject Fallback (non-fruit detection)**
+Multi-signal check: (a) top fruit confidence < 0.40, (b) fruit-colored pixels < 150, (c) top1↔top2 margin < 0.10. Kalau salah satu trigger → tampil "Tidak Terdeteksi" dengan transparansi probabilitas model.
+
+**5. Visual Bar Calibration (jeruk)**
+Khusus untuk jeruk, bar progress di-remap visual (raw `rotten × 0.80`) supaya jeruk lokal yang ber-hue hijau-oren tidak terlihat 50/50 secara visual padahal label-nya Segar. Label & threshold klasifikasi tetap original.
+
+**Pisang (banana) classification** tidak di-touch oleh color rescue — prediksi murni dari model + decay detector di atas.
 
 ### Proses Training
 
@@ -216,5 +230,3 @@ Panduan penggunaan tersedia di `05_UserGuide/final/VigorScan_UserGuide.docx` men
 
 
 ---
-
-*Dibuat dengan ❤️ untuk Final Project AI/ML — Kelompok 8*
