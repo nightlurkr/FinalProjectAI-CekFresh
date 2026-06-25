@@ -329,6 +329,17 @@ def color_signature(img):
     colorful = (sat > 0.40) & (val > 0.30)
     # Hanya hitung pixel di rentang warna buah: red+orange+yellow (0-70° atau >340°)
     fruit_mask = colorful & ((hue < 70) | (hue > 340))
+
+    # ── SKIN TONE FILTER ──
+    # Telapak tangan/kulit punya hue mirip orange-merah tapi saturasi sedang.
+    # Hue 5-40°, sat 0.15-0.50, val 0.45-0.85 = skin tone. Exclude dari fruit_mask
+    # supaya rasio red/orange tidak tertipu oleh tangan yang memegang buah.
+    skin_mask = (
+        (hue >= 5) & (hue < 40)
+        & (sat >= 0.15) & (sat < 0.50)
+        & (val >= 0.45) & (val < 0.85)
+    )
+    fruit_mask = fruit_mask & (~skin_mask)
     fruit_n = int(fruit_mask.sum())
     if fruit_n < 200:
         return {"red_ratio": 0.0, "orange_ratio": 0.0,
@@ -415,16 +426,18 @@ def predict_freshness(img, model, class_names):
 
         if detected == "orange":
             # Model bilang Jeruk tapi gambar dominan MERAH → kemungkinan tomat
+            # Threshold ketat: red >0.55 AND red > orange * 1.8 supaya skin tone
+            # tidak mendilusi rasio dan trigger override salah.
             if (sig["fruit_n"] >= 200
-                and sig["red_ratio"] > 0.45
-                and sig["red_ratio"] > sig["orange_ratio"] * 1.4):
+                and sig["red_ratio"] > 0.55
+                and sig["red_ratio"] > sig["orange_ratio"] * 1.8):
                 detected = "tomato"
                 color_override = "red_to_tomato"
         elif detected == "tomato":
             # Model bilang Tomat tapi gambar dominan ORANGE → kemungkinan jeruk
             if (sig["fruit_n"] >= 200
-                and sig["orange_ratio"] > 0.45
-                and sig["orange_ratio"] > sig["red_ratio"] * 1.4):
+                and sig["orange_ratio"] > 0.55
+                and sig["orange_ratio"] > sig["red_ratio"] * 1.8):
                 detected = "orange"
                 color_override = "orange_to_orange"
 
@@ -770,7 +783,6 @@ with tab_camera:
             )
         with col_h2:
             if st.button("🗑️ Bersihkan", use_container_width=True, key="clear_camera"):
-                st.session_state.camera_result = None
                 st.session_state.camera_nonce += 1
                 st.rerun()
         st.markdown("<hr>", unsafe_allow_html=True)
